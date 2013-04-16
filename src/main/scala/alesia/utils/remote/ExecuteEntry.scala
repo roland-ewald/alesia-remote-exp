@@ -1,10 +1,10 @@
-package remoteExperimentSimple
+package alesia.utils.remote
 
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import remoteExperimentSimple.Actors.EntryActor
+import alesia.utils.remote.Actors.EntryActor
 import scala.io.Source
 import java.io.File
 

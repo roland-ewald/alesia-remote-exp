@@ -1,11 +1,11 @@
-package remoteExperimentSimple
+package alesia.utils.remote
 
 import com.typesafe.config.ConfigFactory
 import akka.actor._
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.event.Logging
-import remoteExperimentSimple.Actors.WorkerActor
+import alesia.utils.remote.Actors.WorkerActor
 
 object ExecuteWorker {
 	def main(args: Array[String]) = {
