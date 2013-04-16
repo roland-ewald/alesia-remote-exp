@@ -1,6 +1,7 @@
 package alesia.utils.remote
 
 import java.lang.reflect.Array
+import java.io.File
 
 object Config {
 
@@ -14,13 +15,18 @@ object Config {
 	val entryASName = "EntryActorSystem"
 	val entryActorName = "EntryActor"
 
-	val separator: String = System.getProperty("file.separator");
-	val contextFolders = "C:\\Users\\JoWa\\Desktop\\HiWi Akka\\workspace\\akka-remote-test2"
+	def separator: String = System.getProperty("file.separator");
 
-	val experimentCommandSeq = Seq("java", "-cp", "\"" + contextFolders + "\"", "HelloWoerld")
-	val resultFileName = contextFolders + "\\results.txt"
-	val experimentFileOriginalFile = "src\\main\\resources\\HelloWoerld.class"
-	val experimentFileName = "HelloWoerld.class"
+	// On Worker only:
+	def contextFolder = (new File(".")).getCanonicalPath() // The folder the actorSystem is executed in	
+	def experimentCommandSeq = Seq("java", "-cp", "\"" + contextFolder + "\"", "HelloWoerld")
+	def resultFileName = contextFolder + separator + "results.txt"
+
+	// On Entrypoint only:
+	def experimentFileOriginalFile = List("src", "main", "resources", "HelloWoerld.class").fold(".")((a, b) => a + separator + b)
+
+	// On Worker and Entrypoint:
+	def experimentFileName = "HelloWoerld.class"
 
 	def configString(ip: String, port: String): String = {
 		"""
