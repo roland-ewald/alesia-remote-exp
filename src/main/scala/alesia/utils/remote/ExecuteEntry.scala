@@ -4,9 +4,9 @@ import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import alesia.utils.remote.Actors.EntryActor
 import scala.io.Source
 import java.io.File
+import alesia.utils.remote.actors.EntryActor
 
 object ExecuteEntry {
 	def main(args: Array[String]) = {
@@ -19,7 +19,8 @@ object ExecuteEntry {
 			val source = Source.fromFile(Config.experimentFileOriginalFile)
 			val lines = source.mkString // send them
 			source.close()
-			entryAS.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines, 1515)
+			//			entryAS.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines)
+			entry ! MsgCreateExperiment(lines)
 			Thread.sleep(30000)
 			entryAS.shutdown // shutdown after 30 sec
 		} else {

@@ -5,7 +5,7 @@ import akka.actor._
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.event.Logging
-import alesia.utils.remote.Actors.WorkerActor
+import alesia.utils.remote.actors.WorkerActor
 
 object ExecuteWorker {
 	def main(args: Array[String]) = {
