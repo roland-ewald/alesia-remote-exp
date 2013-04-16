@@ -8,11 +8,11 @@ import akka.event.Logging
 import remoteExperimentSimple.Actors.WorkerActor
 
 object ExecuteWorker {
-  def main(args: Array[String]) = {
-    val workerAS = ActorSystem(Config.workerASName, ConfigFactory.load(ConfigFactory.parseString(Config.configString(Config.workerIP, Config.workerPort))))
+	def main(args: Array[String]) = {
+		val workerAS = ActorSystem(Config.workerASName, ConfigFactory.load(ConfigFactory.parseString(Config.configString(Config.workerIP, Config.workerPort))))
 
-    val worker = workerAS.actorOf(Props[WorkerActor], name = Config.workerActorName)	
-    Thread.sleep(30000)
-    workerAS.shutdown // shutdown after 30 sec
-  }
+		val worker = workerAS.actorOf(Props[WorkerActor], name = Config.workerActorName)
+		Thread.sleep(30000)
+		workerAS.shutdown // shutdown after 30 sec
+	}
 }
