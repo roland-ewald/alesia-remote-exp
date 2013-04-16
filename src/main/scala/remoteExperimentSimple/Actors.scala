@@ -2,14 +2,16 @@ package remoteExperimentSimple
 
 import java.io.File
 import java.io.PrintWriter
-
 import scala.io.Source
 import scala.sys.process.Process
-
 import akka.actor.Actor
 import akka.actor.actorRef2Scala
 import akka.event.Logging
 import akka.util.duration.intToDurationInt
+import akka.dispatch.Future
+import akka.actor.Status.Success
+import akka.actor.Props
+import akka.dispatch.OnSuccess
 
 object Actors {
 	class WorkerActor extends Actor {
@@ -22,64 +24,78 @@ object Actors {
 	    
 	    override def receive = {
 	    	case MsgCreateExperiment(classfileContent:String) => {
+	    	  val experiment = context.actorOf(Props[WorkerExperimentActor]) // TODO: differentiate for each experiment folder on file system!
+	    	  experiment ! MsgCreateExperiment(classfileContent:String)
+	    	}
+	    }
+	}
+	
+	class WorkerExperimentActor extends Actor {
+		import context.dispatcher // execturion context for futures
+	    val log = Logging(context.system, this)
+	    log.info("WorkerActor at service.")    
+	    var pb:scala.sys.process.ProcessBuilder = null // keep this, so wathcdog can cancell it TODO: Watchdog
+	    
+	    override def receive = {
+	    	case MsgCreateExperiment(classfileContent:String) => {
 	    	  log.info("Msg received"); 
 	    	  
 	    	  val file = new File(Config.experimentFileName)
 	    	  file.deleteOnExit()
 	    	  
 	    	  val pw = new PrintWriter(file)
-	    	  try {pw.println(classfileContent)} finally {pw.close()} // note: that operation takes time
 	    	  
-	    	  schedule1 = context.system.scheduler.schedule(0 seconds, 1 seconds, self, MsgIsExperimentCreated)	    
+	    	  val f = Future{
+	    	    pw.println(classfileContent)
+	    	    pw.close // includes flush
+	    	  } onSuccess {
+	    	    case _ => self ! MsgIsExperimentCreated // ? does self keep its value in the new context? or use closures
+	    	  } onFailure {
+	    	    case exception => ; // TODO: File was not created
+	    	  }
 	    	}
+	    	
 	    	case MsgIsExperimentCreated => {
-	    		log.info("Experiment File created");
-	    		val file = new File(Config.experimentFileName)
-	    		if(file.exists()) {
-	    			schedule1.cancel
-	    			
-	    			pb = Process(Config.experimentCommandSeq) 
-	    			stream = pb.lines
-	    			
-	    			schedule = context.system.scheduler.schedule(0 seconds, 1 seconds, self, MsgIsExperimentReady)
-	    		}	  
+	    	  // here: assured the Experiment *.class files are safely created
+				log.info("Experiment File created");
+				val file = new File(Config.experimentFileName)
+				pb = Process(Config.experimentCommandSeq) 
+				val f = Future {
+				  pb.!! // executes the console lines. see execution context
+				} onSuccess {
+				  case res:String => self ! MsgIsExperimentReady
+				} onFailure {
+				  case _ => ; // note: cannot happen. use watchdog instead
+				}
 	    	}
 	    	case MsgIsExperimentReady => {
-	    	  // test weather the experiment is ready
-	    	  // yes: send file
-	    	  //      send stream?
-	    	  //      cancel schedule
-	    	  // else: nothing (for now)
-	    	  log.info("Experiment was startet");
-	    	  if(pb.hasExitValue) {
-	    	    log.info("Experiment has exited")
-	    		  // get file
-	    		  // send file
-	    	      val file = new File(Config.resultFileName)
-	    		  if(file.exists()) {// send file
-	    			  val source = Source.fromFile(file)
-	    			  val lines = source.mkString // send them
-	    			  source.close ()
-	    			  
-	    			  context.actorFor(Config.actorAdress(Config.entryActorName, Config.entryASName, Config.entryIP, Config.entryPort)) ! MsgExperimentResults(Config.resultFileName, lines)
-	    			  
-	    			  file.delete()
-	    		  } else {
-	    		    log.error("no result file found")
-	    		  }
-	    		    
-	    		  schedule.cancel
-	    		  stream = null
-	    		  pb = null
-	    		  schedule = null
-	    	  }
-	    	  // nothing
+	    	  // here: assured Experiment IS ready
+	    	  log.info("Experiment has exited")
+    		  // get file
+    		  // send file
+    	      val file = new File(Config.resultFileName)
+    		  if(file.exists()) {// send file
+    			  	val source = Source.fromFile(file)
+					val f = Future {
+    			  		val lines = source.mkString // blocks till finished
+    			  		source.close
+    			  		file.delete()
+    			  		lines
+					} onSuccess {
+					  case lines:String => context.actorFor(Config.actorAdress(Config.entryActorName, Config.entryASName, Config.entryIP, Config.entryPort)) ! MsgExperimentResults(Config.resultFileName, lines)
+					} onFailure {
+					  case exception => ; // TODO: file could not be read
+					}
+    		  } else {
+    		    log.error("no result file found")
+    		    // TODO: no File
+    		  }
+    		  pb = null
+    		  // at this point, the actor has received the last message and can be closed
+    		  context.stop(self) 
 	    	}
 	    }
-	    
-	    
 	}
-	
 	class EntryActor extends Actor { 
 	    val log = Logging(context.system, this)
 	    log.info("EntryActor at service.")    
