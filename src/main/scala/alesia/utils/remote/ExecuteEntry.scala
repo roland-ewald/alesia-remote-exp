@@ -19,7 +19,7 @@ object ExecuteEntry {
 			val source = Source.fromFile(Config.experimentFileOriginalFile)
 			val lines = source.mkString // send them
 			source.close()
-			entryAS.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines)
+			entryAS.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines, 1515)
 			Thread.sleep(30000)
 			entryAS.shutdown // shutdown after 30 sec
 		} else {

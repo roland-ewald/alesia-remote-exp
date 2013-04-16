@@ -19,8 +19,9 @@ object Config {
 
 	// On Worker only:
 	def contextFolder = (new File(".")).getCanonicalPath() // The folder the actorSystem is executed in	
-	def experimentCommandSeq = Seq("java", "-cp", "\"" + contextFolder + "\"", "HelloWoerld")
-	def resultFileName = contextFolder + separator + "results.txt"
+	def experimentCommandSeq(n: Int): Seq[String] = Seq("java", "-cp", "\"" + contextFolder + separator + experimentDirectory(n) + "\"", "HelloWoerld")
+	def resultFileName = "results.txt"
+	def experimentDirectory = (number: Int) => "ExperimentDir" + number
 
 	// On Entrypoint only:
 	def experimentFileOriginalFile = List("src", "main", "resources", "HelloWoerld.class").fold(".")((a, b) => a + separator + b)
