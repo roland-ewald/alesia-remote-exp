@@ -10,8 +10,6 @@ import java.io.File
 
 object ExecuteEntry {
 	def main(args: Array[String]) = {
-		System.out.println(Config.experimentFileOriginalFile)
-
 		val entryAS = ActorSystem(Config.entryASName, ConfigFactory.load(ConfigFactory.parseString(Config.configString(Config.entryIP, Config.entryPort))))
 
 		val entry = entryAS.actorOf(Props[EntryActor], name = Config.entryActorName)
