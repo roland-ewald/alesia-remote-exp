@@ -22,6 +22,6 @@ class EntryActor extends Actor {
 			val pw = new PrintWriter(file)
 			try { pw.println(content); pw.println("At Entrypoint at " + System.currentTimeMillis()) } finally { pw.close() }
 		}
-		case MsgCreateExperiment(lines: String) => context.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines)
+		case MsgCreateExperiment(lines: Array[Byte]) => context.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines)
 	}
 }

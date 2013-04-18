@@ -16,8 +16,8 @@ object ExecuteEntry {
 
 		val file = new File(Config.experimentFileOriginalFile)
 		if (file.exists()) { // send file
-			val source = Source.fromFile(Config.experimentFileOriginalFile)
-			val lines = source.mkString // send them
+			val source = Source.fromFile(Config.experimentFileOriginalFile)(scala.io.Codec.ISO8859)
+			val lines = source.map(_.toByte).toArray //source.mkString // send them
 			source.close()
 			//			entryAS.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort)) ! MsgCreateExperiment(lines)
 			entry ! MsgCreateExperiment(lines)

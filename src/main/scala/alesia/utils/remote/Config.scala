@@ -24,7 +24,7 @@ object Config {
 	def experimentDirectory = (number: Int) => "ExperimentDir" + number
 
 	// On Entrypoint only:
-	def experimentFileOriginalFile = List("src", "main", "resources", "HelloWoerld.class").fold(".")((a, b) => a + separator + b)
+	def experimentFileOriginalFile = "./HelloWoerld.class"// List("src", "main", "resources", "HelloWoerld.class").fold(".")((a, b) => a + separator + b)
 
 	// On Worker and Entrypoint:
 	def experimentFileName = "HelloWoerld.class"

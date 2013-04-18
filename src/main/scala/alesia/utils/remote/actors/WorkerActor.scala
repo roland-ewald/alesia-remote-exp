@@ -19,6 +19,7 @@ import alesia.utils.remote.MsgIsExperimentCreated
 import alesia.utils.remote.MsgIsExperimentReady
 import alesia.utils.remote.MsgCreateExperiment2
 import akka.actor.ActorPath
+import java.io.FileOutputStream
 
 class WorkerActor extends Actor {
 	val log = Logging(context.system, this)
@@ -28,10 +29,10 @@ class WorkerActor extends Actor {
 	var experimentNumber = 1 // arbitrary number, just for experiment folders
 
 	override def receive = {
-		case MsgCreateExperiment(classfileContent: String) => {
+		case MsgCreateExperiment(classfileContent: Array[Byte]) => {
 			val experiment = context.actorOf(Props[WorkerExperimentActor])
 			val id = new ID
-			experiment ! MsgCreateExperiment2(classfileContent: String, experimentNumber, id: ID)
+			experiment ! MsgCreateExperiment2(classfileContent, experimentNumber, id: ID)
 			experimentActorMap += id -> experiment
 			val sendr = sender
 			entryActorMap += id -> sendr
@@ -55,7 +56,7 @@ class WorkerExperimentActor extends Actor {
 	var id: ID = new ID
 
 	override def receive = {
-		case MsgCreateExperiment2(classfileContent: String, number: Int, id: ID) => {
+		case MsgCreateExperiment2(classfileContent: Array[Byte], number: Int, id: ID) => {
 			log.info("Msg received");
 			experimentNumber = number
 			this.id = id
@@ -68,10 +69,10 @@ class WorkerExperimentActor extends Actor {
 			// crete the .class file, that is the experiment:
 			val file = new File(Config.experimentDirectory(experimentNumber) + Config.separator + Config.experimentFileName)
 			file.deleteOnExit() // file will be deleted when jvm exits
-			val pw = new PrintWriter(file)
+			val pw = new FileOutputStream(file)
 
 			val f = Future {
-				pw.print(classfileContent)
+				pw.write(classfileContent)
 				pw.close // includes flush
 			} onSuccess {
 				case _ => self ! MsgIsExperimentCreated //
