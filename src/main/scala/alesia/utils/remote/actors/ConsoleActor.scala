@@ -2,8 +2,8 @@ package alesia.utils.remote.actors
 
 import akka.actor.Actor
 import akka.event.Logging
-import akka.dispatch.Future
 import alesia.utils.remote.ID
+import scala.concurrent.Future
 
 class ConsoleActor extends Actor {
 	import context.dispatcher
