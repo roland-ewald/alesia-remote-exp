@@ -10,7 +10,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<scala.version>2.9.2</scala.version>
+		<scala.version>2.10.1</scala.version>
 	</properties>
 
 	<repositories>
@@ -27,7 +27,7 @@
 		<repository>
 			<id>akka</id>
 			<name>Akka Repository</name>
-			<url>http://repo.akka.io/releases/</url>
+			<url>http://repo1.maven.org/maven2/</url>
 		</repository>
 	</repositories>
 
@@ -59,8 +59,8 @@
 		</dependency>
 		<dependency>
 			<groupId>org.scalatest</groupId>
-			<artifactId>scalatest_2.9.2</artifactId>
-			<version>1.8</version>
+			<artifactId>scalatest_2.10</artifactId>
+			<version>1.9.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -70,13 +70,13 @@
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-actor</artifactId>
-			<version>2.0.5</version>
+			<artifactId>akka-actor_2.10</artifactId>
+			<version>2.1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote</artifactId>
-			<version>2.0.5</version>
+			<artifactId>akka-remote_2.10</artifactId>
+			<version>2.1.2</version>
 			<scope>runtime</scope>
 		</dependency>
 
