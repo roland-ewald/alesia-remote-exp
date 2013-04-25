@@ -24,7 +24,7 @@ object ExecuteEntry {
 			Thread.sleep(30000)
 			entryAS.shutdown // shutdown after 30 sec
 		} else {
-			System.out.println("Experiment .class File not found")
+			System.out.println("Experiment .class File not found ('" + file.getAbsolutePath +"')")
 		}
 	}
 }
