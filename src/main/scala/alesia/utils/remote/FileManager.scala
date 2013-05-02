@@ -26,7 +26,7 @@ object FileReader {
 			var last = false // last sweep
 			val fID = new fileID // create ID for this file
 			while (!last) {
-				var content: Array[Byte] = new Array(0)
+				var content = Array[Byte]()
 				if (rest.length > 899999) {
 					val split = rest.splitAt(900000) // ~900 KB max per package
 					content = split._1

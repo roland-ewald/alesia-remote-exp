@@ -47,7 +47,7 @@ class FileActor(expDir: String, eID: expID) extends Actor {
 	def storeMessage(content: Array[Byte], filename: String, folder: String, id: fileID) {
 		stillWorking += id -> true
 		fileNamesPlus += id -> (expDir + Config.separator + folder + Config.separator + filename)
-		contents += id -> (contents.getOrElse(id, Array(0): Array[Byte]) ++ content)
+		contents += id -> (contents.getOrElse(id, Array()) ++ content)
 	}
 
 	def writeFile(id: fileID) {
