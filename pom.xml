@@ -24,6 +24,21 @@
 			<name>Scala-tools Maven2 Repository</name>
 			<url>http://scala-tools.org/repo-releases</url>
 		</repository>
+		
+		<repository>
+  <snapshots>
+  <enabled>false</enabled>
+  </snapshots>
+  <id>bintray</id>
+  <name>ALeSiA repository</name>
+  <url>http://dl.bintray.com/content/roland-ewald/alesia</url>
+</repository>
+<repository>
+    <id>scala-tools.org</id>
+    <name>Scala-tools Maven2 Repository</name>
+    <url>http://scala-tools.org/repo-releases</url>
+</repository>
+		
 	</repositories>
 
 	<pluginRepositories>
@@ -112,6 +127,13 @@
                 </exclusion>
             </exclusions>
         </dependency>
+		
+		<dependency>
+  <groupId>alesia</groupId>
+  <artifactId>alesia-component-rating-system</artifactId>
+  <version>0.1</version> <!-- Use current version here-->
+</dependency>
+		
 	</dependencies>
 
 	<!-- BUILDING -->

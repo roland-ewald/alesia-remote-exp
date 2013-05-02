@@ -1,70 +1,84 @@
 package alesia.utils.remote
 
+import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import scala.io.Source
-import scala.concurrent.Future
-import akka.dispatch.MessageDispatcher
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.io.Source
+import akka.dispatch.OnSuccess
+import java.io.PrintWriter
 
-class FileManager(files: List[String], foldername: String) {
-  val fFiles = files.map(s => new File(s))
-  if (!fFiles.forall(f => f.exists)) fFiles // TODO: error: one file does not exist
+object FileReader {
+	def readFiles(foldername: String, workfolder: String, eID: expID, clsr: MsgFilePackage => Unit, finished: () => Unit)(implicit executor: ExecutionContext) {
+		val fFiles = (new File(foldername)).listFiles()
+		fFiles.foreach(f => readFile(f, workfolder, eID, clsr, finished))
+	}
 
-  files.foreach(s => {
-    val id = ID()
-    val file = new File(s)
-    val source = Source.fromFile(file)(scala.io.Codec.ISO8859) // TODO: takes time
-    val lines = source.map(_.toByte).toArray
-    val filename = file.getName()
-    val folder = foldername
+	def readFile(file: File, workfolder: String, eID: expID, clsr: MsgFilePackage => Unit, finished: () => Unit)(implicit executor: ExecutionContext) = {
+		val fileFuture = Future {
+			val source = Source.fromFile(file)(scala.io.Codec.ISO8859)
+			val lines = source.map(_.toByte).toArray
+			val filename = file.getName().drop(workfolder.length)
+			val folder: String = if (file.getParentFile().equals((new File(workfolder)).getName())) "." else file.getParentFile().getName() // support only up to depth of 1, like "libs\filename.txt"
 
-    var templines = lines
-    while (templines.length > 0) {
-      var last = false // last sweep
-      var content: Array[Byte] = new Array(0)
-      if (templines.length > 899999) {
-        val split = templines.splitAt(900000) // ~900 KB max per package
-        content = split._1
-        templines = split._2 // iterator of this loop 
-      } else {
-        content = templines
-        last = true
-      }
+			var rest = lines
+			var last = false // last sweep
+			val fID = new fileID // create ID for this file
+			while (!last) {
+				var content: Array[Byte] = new Array(0)
+				if (rest.length > 899999) {
+					val split = rest.splitAt(900000) // ~900 KB max per package
+					content = split._1
+					rest = split._2 // iterator of this loop 
+				} else {
+					content = rest
+					last = true
+				}
 
-      val msg = new MsgFilePackage(content, filename, folder, last, id)
-      // send it
-    }
-  })
+				val msg = MsgFilePackage(content, filename, folder, last, eID, fID)
+				clsr(msg)
+			} //success
+			;
+		}
+
+		fileFuture.onSuccess {
+			case _ => finished;
+		}
+		fileFuture.onFailure {
+			case exception => ; // TODO: Folder or File was not created
+		}
+	}
 }
 
-object FileSystemIO {
-  def createFiles(content: Array[Byte], filenamePlus: String)(implicit executor: ExecutionContext, experimentNumber: Int): Unit = { // TODO: add actor for callback (errors etc)
-    val workfolder = Config.experimentDirectory(experimentNumber) // put number here
-    val file = workfolder + Config.separator + filenamePlus
+object FileWriter1 {
+	def createFileAndFolders(content: Array[Byte], filenamePlus: String, clsr: () => Unit)(implicit executor: ExecutionContext): Unit = { // TODO: add actor for callback (errors etc)
+		val file = new File(filenamePlus)
+		val folderFuture = Future {
+			(new File(filenamePlus)).getParentFile().mkdirs()
+		}
+		folderFuture.onSuccess {
+			case _ => createFile(content, file, clsr());
+		}
+		folderFuture.onFailure {
+			case exception => ; // TODO: Folder or File was not created
+		}
+	}
+	def createFile(content: Array[Byte], file: File, clsr: Unit)(implicit executor: ExecutionContext): Unit = {
+		val fos = new DataOutputStream(new FileOutputStream(file))
+		if (file.exists()) {} // error: file exists. ignore? rewrite?
 
-    val fFile = new File(file)
-    val fos = new FileOutputStream(fFile)
-
-    if (new File(file).exists()) {} // error: file exists. ignore? rewrite?
-
-    // now clear to write
-    val fileFuture = Future {
-      fFile.mkdirs()
-      fos.write(content)
-      fos.close // includes flush
-    }
-
-    fileFuture.onSuccess {
-      case _ => ; // success
-    }
-
-    fileFuture.onFailure {
-      case exception => ; // TODO: Folder or File was not created
-    }    
-
-    // this prop. needs to be threads save for, say, 10 files at once 
-  }
+		// now clear to write
+		val fileFuture = Future {
+			fos.write(content)
+			fos.close // includes flush
+		}
+		fileFuture.onSuccess {
+			case _ => clsr; // success, execute Closure
+		}
+		fileFuture.onFailure {
+			case exception => ; // TODO: Folder or File was not created
+		}
+	}
 }
 
-case class MsgFilePackage(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, id: ID)

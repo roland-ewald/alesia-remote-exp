@@ -1,140 +1,57 @@
 package alesia.utils.remote.actors
 
-import java.io.File
-import java.io.PrintWriter
-import scala.io.Source
-import scala.sys.process.Process
+import scala.collection.immutable.HashMap
 import akka.actor.Actor
+import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import scala.concurrent.Future
 import akka.event.Logging
 import alesia.utils.remote.Config
-import scala.collection.immutable.HashMap
-import alesia.utils.remote.ID
-import akka.actor.ActorRef
-import alesia.utils.remote.MsgCreateExperiment
-import alesia.utils.remote.MsgExperimentResults
-import alesia.utils.remote.MsgIsExperimentCreated
-import alesia.utils.remote.MsgIsExperimentReady
-import alesia.utils.remote.MsgCreateExperiment2
-import akka.actor.ActorPath
-import java.io.FileOutputStream
+import alesia.utils.remote.MsgExperimentInit
+import alesia.utils.remote.MsgFilePackage
+import alesia.utils.remote.MsgReady
+import alesia.utils.remote.MsgStartExperiment
+import alesia.utils.remote.MsgStartExperiment
+import akka.pattern.ask
+import alesia.utils.remote.MsgStartExperiment
+import alesia.utils.remote.MsgFinished1
+import alesia.utils.remote.MsgGetExperimentResults
+import alesia.utils.remote.MsgFilePackage
+import alesia.utils.remote.expID
 
 class WorkerActor extends Actor {
-  val log = Logging(context.system, this)
-  log.info("WorkerActor at service.")
-  var experimentActorMap = new HashMap[ID, ActorRef]
-  var entryActorMap = new HashMap[ID, ActorRef]
-  var experimentNumber = 1 // arbitrary number, just for experiment folders
+	val log = Logging(context.system, this)
+	log.info("WorkerActor at service.")
 
-  override def receive = {
-    case MsgCreateExperiment(classfileContent: Array[Byte]) => {
-      val experiment = context.actorOf(Props[WorkerExperimentActor])
-      val id = new ID
-      experiment ! MsgCreateExperiment2(classfileContent, experimentNumber, id: ID)
-      experimentActorMap += id -> experiment
-      val sendr = sender
-      entryActorMap += id -> sendr
-      experimentNumber = experimentNumber + 1
-    }
-    case MsgExperimentResults(id: ID, content: String) => {
-      log.info("Experiment results at parent.")
-      entryActorMap(id) ! MsgExperimentResults(id, content)
-      experimentActorMap.-(id)
-      entryActorMap.-(id)
-    }
-  }
+	var experimentActorMap = new HashMap[expID, ActorRef] // WorkerExperimentActors
+	var entryActorMap = new HashMap[expID, ActorRef] // EntryActors	
+	var experimentNumber = 1 // arbitrary number, just for experiment folders
+
+	override def receive = {
+		// From outside
+		case MsgExperimentInit(id: expID, mainClazz: String) => newExperiment(sender, id, mainClazz)
+		case a: MsgStartExperiment => experimentActorMap(a.eID) ! a // TODO: experiment id not existent
+		// From children
+		//		case a: MsgExperimentResults => entryActorMap(a.e) ! a // TODO: cleanup references
+		//		case a: MsgExperimentResults1 => entryActorMap(a.id) ! a // TODO: remove references		
+		// From both
+		case a: MsgFilePackage => delegateTwoWayMessages(a, sender) // TODO: experiment id not existent
+	}
+
+	// Starts new Exeriment
+	def newExperiment(sender: ActorRef, id: expID, mainClazz: String) {
+		val experimentDir = Config.experimentDirectory(experimentNumber)
+		experimentNumber = experimentNumber + 1
+		val experiment = context.actorOf(WorkerExperimentActor(id, experimentDir, mainClazz))
+
+		experimentActorMap += id -> experiment
+		entryActorMap += id -> sender
+	}
+
+	// decide, weather a MsgFilePackage has to go outside (EntryActor) or inside (WorkerExperimentActor)
+	def delegateTwoWayMessages(a: MsgFilePackage, sender: ActorRef) {
+		if (context.children.forall(c => !c.equals(sender))) experimentActorMap(a.eID) ! a // Sender is not my child, send to experimentActor
+		else entryActorMap(a.eID) ! a // sender is one of my children, send back to entry actor
+	}
 }
 
-class WorkerExperimentActor extends Actor {
-  import context.dispatcher // execturion context for Futures
-  val log = Logging(context.system, this)
-  log.info("WorkerExperimentActor at service.")
-  var pb: scala.sys.process.ProcessBuilder = null // keep this, so wathcdog can cancell it TODO: Watchdog
-  var experimentNumber: Int = 0
-  var id: ID = new ID
-
-  override def receive = {
-    case MsgCreateExperiment2(classfileContent: Array[Byte], number: Int, id: ID) => {
-      log.info("Msg received");
-      experimentNumber = number
-      this.id = id
-
-      // create experiment directory: TODO: make concurrent
-      val dir = new File(Config.experimentDirectory(experimentNumber))
-      if (!dir.exists() && !dir.mkdir()) log.info("Could not create experiment directory"); // TODO: error handling
-      dir.deleteOnExit()
-
-      // crete the .class file, that is the experiment:
-      val file = new File(Config.experimentDirectory(experimentNumber) + Config.separator + Config.experimentFileName)
-      file.deleteOnExit() // file will be deleted when jvm exits
-      val pw = new FileOutputStream(file)
-
-      val f = Future {
-        pw.write(classfileContent)
-        pw.close // includes flush
-      } 
-      
-      f.onSuccess {
-        case _ => self ! MsgIsExperimentCreated //
-      } 
-      
-      f.onFailure {
-        case exception => ; // TODO: File was not created
-      }
-    }
-
-    case MsgIsExperimentCreated => {
-      // here: assured the Experiment *.class files are safely created
-      log.info("Experiment File created");
-
-      // create the process that is the experiment:
-      pb = Process(Config.experimentCommandSeq(experimentNumber), new File(Config.contextFolder + Config.separator + Config.experimentDirectory(experimentNumber)))
-
-      val f = Future {
-        pb.!! // executes the console lines. see execution context
-      }
-      
-      f onSuccess {
-        case res: String => self ! MsgIsExperimentReady
-      }
-      
-      f onFailure {
-        case _ => ; // note: cannot happen. use watchdog instead
-      }
-    }
-    case MsgIsExperimentReady => {
-      // here: assured Experiment is finished
-      log.info("Experiment has exited")
-      val x = context.parent
-
-      // retrieve the experiment result file and send it to entrypoint:
-      val file = new File(Config.experimentDirectory(experimentNumber) + Config.separator + Config.resultFileName)
-      if (file.exists()) { // send file
-        val source = Source.fromFile(file)
-        val f = Future {
-          val lines = source.mkString // blocks till finished
-          source.close
-          file.delete()
-          lines
-        } 
-        
-        f onSuccess {
-          case lines: String => x ! MsgExperimentResults(id, lines)
-        } 
-        
-        f onFailure {
-          case exception => ; // TODO: file could not be read
-        }
-      } else {
-        log.error("no result file found")
-        // TODO: no File
-      }
-      pb = null
-      experimentNumber = 0
-      // at this point, the actor has received the last message and can be closed
-      context.stop(self)
-    }
-  }
-}

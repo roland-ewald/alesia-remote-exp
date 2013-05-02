@@ -15,19 +15,25 @@ object Config {
 	val entryASName = "EntryActorSystem"
 	val entryActorName = "EntryActor"
 
-	def separator: String = System.getProperty("file.separator");
+	// System Properties 
+	def separator: String = System.getProperty("file.separator")
+	def cSeperator: String = System.getProperty("path.separator")
 
 	// On Worker only:
 	def contextFolder = (new File(".")).getCanonicalPath() // The folder the actorSystem is executed in	
 	def experimentCommandSeq(n: Int): Seq[String] = Seq("java", "-cp", "\"" + contextFolder + separator + experimentDirectory(n) + "\"", "HelloWoerld")
 	def resultFileName = "results.txt"
 	def experimentDirectory = (number: Int) => "ExperimentDir" + number
+	//	def experimentCommandSeq(dir: String, clazz: String): Seq[String] = Seq("java", "-cp", "\"" + dir + cSeperator + libsFolder(dir) + separator + "*" + "\"", clazz)
+	def libsFolder(dir: String) = dir + separator + "libs"
+	def resultsFolder(dir: String) = dir + separator + "results"
 
 	// On Entrypoint only:
-	def experimentFileOriginalFile = "./HelloWoerld.class"// List("src", "main", "resources", "HelloWoerld.class").fold(".")((a, b) => a + separator + b)
+	def experimentFileOriginalFile = "./HelloWoerld.class" // List("src", "main", "resources", "HelloWoerld.class").fold(".")((a, b) => a + separator + b)
 
 	// On Worker and Entrypoint:
 	def experimentFileName = "HelloWoerld.class"
+	def expMainClass = "HelloWoerld"
 
 	def configString(ip: String, port: String): String = {
 		"""
@@ -41,6 +47,8 @@ object Config {
 			        hostname = """" + ip + """"
 			        port = """ + port + """
 			      }
+			      log-sent-messages = on
+			      log-received-messages = on
 			    }
 			  }
 		"""
