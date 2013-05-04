@@ -20,7 +20,8 @@ class WatchdogActor(clazzName: String, directory: String) extends Actor {
 			log.info("WatchdogActor: starting execution.");
 
 			// create the process that is the experiment:
-			val pb = Process(Config.experimentCommandSeq(1), new File(Config.contextFolder + Config.separator + Config.experimentDirectory(1)))
+			//			val pb = Process(Config.experimentCommandSeq(1), new File(Config.contextFolder + Config.separator + Config.experimentDirectory(1)))
+			val pb = Process(Config.experimentCommandSeq(1), new File(Config.resultsFolder(Config.contextFolder + Config.separator + directory)))
 			val p = context.parent
 
 			val f = Future {

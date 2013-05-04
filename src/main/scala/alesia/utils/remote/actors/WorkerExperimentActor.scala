@@ -10,6 +10,7 @@ import akka.actor.Actor
 import alesia.utils.remote.MsgGetExperimentResults
 import akka.actor.ActorRef
 import alesia.utils.remote.expID
+import alesia.utils.remote.MsgFilePackageInternal
 
 class WorkerExperimentActor(eID: expID, expDir: String, mainClazz: String) extends Actor {
 	import context.dispatcher // execturion context for Futures
@@ -29,10 +30,15 @@ class WorkerExperimentActor(eID: expID, expDir: String, mainClazz: String) exten
 		//		case a: MsgExperimentResults1 => context.parent ! a // ???
 		// From Both
 		case a: MsgFilePackage => fileActor ! a
+		case a: MsgFilePackageInternal => context.parent ! a
 	}
 
 	def delegateTwoWayMessages(a: MsgFilePackage, sender: ActorRef) {
-		if (context.children.forall(c => !c.equals(sender))) fileActor ! a // Sender is not my child, send to experimentActor
+		val x = context.children.toList
+		if (context.children.forall(c => !c.equals(sender))) {
+			val c = 15;
+		}
+		if (context.children.forall(c => !c.equals(sender))) fileActor ! a // Sender is not my child, send to WorkerActor
 		else context.parent ! a // sender is one of my children, send back to entry actor
 	}
 }

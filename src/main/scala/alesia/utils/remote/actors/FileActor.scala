@@ -1,6 +1,8 @@
 package alesia.utils.remote.actors
 
+import java.io.File
 import scala.collection.mutable.HashMap
+import scala.concurrent.Future
 import akka.actor.Actor
 import akka.actor.Props
 import akka.event.Logging
@@ -8,13 +10,14 @@ import alesia.utils.remote.Config
 import alesia.utils.remote.FileReader
 import alesia.utils.remote.FileWriter1
 import alesia.utils.remote.MsgFilePackage
-import alesia.utils.remote.MsgGetExperimentResults
-import alesia.utils.remote.MsgReady
-import alesia.utils.remote.MsgStartExperiment
 import alesia.utils.remote.MsgFinished
+import alesia.utils.remote.MsgGetExperimentResults
 import alesia.utils.remote.MsgReadingResultsFinished
-import alesia.utils.remote.fileID
+import alesia.utils.remote.MsgStartExperiment
 import alesia.utils.remote.expID
+import alesia.utils.remote.fileID
+import alesia.utils.remote.MsgFilePackageInternal
+import alesia.utils.remote.MsgReady
 
 class FileActor(expDir: String, eID: expID) extends Actor {
 	val log = Logging(context.system, this)
@@ -28,19 +31,23 @@ class FileActor(expDir: String, eID: expID) extends Actor {
 	val stillWorking = HashMap[fileID, Boolean]().withDefault(Unit => false) // means file system not finished with creating files
 	var startExperiment = false // is set true, when StartExperiment command received (wait for file operations to exit)
 
+	val f = Future { val v = (new File(Config.resultsFolder(expDir))); v.mkdirs } // creating Results Folder. TODO: catch error  
+
+	override def postRestart(t: Throwable) = { context.stop(self) }
+
 	override def receive = {
 		// From Parent
 		case MsgFilePackage(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: expID, fID: fileID) =>
 			storeMessage(content, filename, folder, fID); if (isLastPart) writeFile(fID)
-		case MsgGetExperimentResults => getExperimentResults
+		case a: MsgGetExperimentResults => getExperimentResults
 		// From self
 		case MsgFinished(id: fileID) => { // File writing finished
 			log.info("FileActor: File writing finished. Name: " + fileNamesPlus(id))
 			stillWorking += id -> false
 			if (startExperiment && stillWorking.values.toList.forall(b => b == false)) context.parent ! MsgReady()
 		}
-		case a: MsgReadingResultsFinished =>
-			log.info("FileActor: Result file reading finished"); context.parent ! a //; context.stop(self) LATER 
+		case MsgReadingResultsFinished(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: expID, fID: fileID) =>
+			log.info("FileActor: Result file reading finished"); context.parent ! MsgFilePackageInternal(content, filename, folder, isLastPart, eID, fID) //; context.stop(self) //LATER
 		case a: MsgStartExperiment => startExperiment = true; if (stillWorking.values.toList.forall(b => b == false)) context.parent ! MsgReady()
 	}
 
@@ -58,9 +65,10 @@ class FileActor(expDir: String, eID: expID) extends Actor {
 	}
 
 	def getExperimentResults {
+		log.info("getting Exp results")
 		val s = self
 		val p = context.parent
-		FileReader.readFiles(Config.resultsFolder(expDir), Config.contextFolder, eID, msg => p ! msg, () => s ! MsgReadingResultsFinished)
+		FileReader.readFiles(Config.resultsFolder(expDir), Config.contextFolder, eID, (msg => s ! msg))
 	}
 }
 

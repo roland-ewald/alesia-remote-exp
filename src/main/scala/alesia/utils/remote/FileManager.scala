@@ -10,16 +10,17 @@ import akka.dispatch.OnSuccess
 import java.io.PrintWriter
 
 object FileReader {
-	def readFiles(foldername: String, workfolder: String, eID: expID, clsr: MsgFilePackage => Unit, finished: () => Unit)(implicit executor: ExecutionContext) {
+	def readFiles(foldername: String, workfolder: String, eID: expID, clsr: MsgReadingResultsFinished => Unit)(implicit executor: ExecutionContext) {
 		val fFiles = (new File(foldername)).listFiles()
-		fFiles.foreach(f => readFile(f, workfolder, eID, clsr, finished))
+		fFiles.foreach(f => readFile(f, workfolder, eID, clsr))
 	}
 
-	def readFile(file: File, workfolder: String, eID: expID, clsr: MsgFilePackage => Unit, finished: () => Unit)(implicit executor: ExecutionContext) = {
+	def readFile(file: File, workfolder: String, eID: expID, clsr: MsgReadingResultsFinished => Unit)(implicit executor: ExecutionContext) = {
+		System.out.println("Reading File: " + file + ", folder: " + workfolder)
 		val fileFuture = Future {
 			val source = Source.fromFile(file)(scala.io.Codec.ISO8859)
 			val lines = source.map(_.toByte).toArray
-			val filename = file.getName().drop(workfolder.length)
+			val filename = file.getName() //.drop(workfolder.length)
 			val folder: String = if (file.getParentFile().equals((new File(workfolder)).getName())) "." else file.getParentFile().getName() // support only up to depth of 1, like "libs\filename.txt"
 
 			var rest = lines
@@ -36,14 +37,14 @@ object FileReader {
 					last = true
 				}
 
-				val msg = MsgFilePackage(content, filename, folder, last, eID, fID)
+				val msg = MsgReadingResultsFinished(content, filename, folder, last, eID, fID)
 				clsr(msg)
 			} //success
 			;
 		}
 
 		fileFuture.onSuccess {
-			case _ => finished;
+			case _ => ;
 		}
 		fileFuture.onFailure {
 			case exception => ; // TODO: Folder or File was not created
@@ -65,6 +66,7 @@ object FileWriter1 {
 		}
 	}
 	def createFile(content: Array[Byte], file: File, clsr: Unit)(implicit executor: ExecutionContext): Unit = {
+		System.out.println("Creating File: " + file)
 		val fos = new DataOutputStream(new FileOutputStream(file))
 		if (file.exists()) {} // error: file exists. ignore? rewrite?
 

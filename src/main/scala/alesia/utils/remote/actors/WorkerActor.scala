@@ -18,6 +18,7 @@ import alesia.utils.remote.MsgFinished1
 import alesia.utils.remote.MsgGetExperimentResults
 import alesia.utils.remote.MsgFilePackage
 import alesia.utils.remote.expID
+import alesia.utils.remote.MsgFilePackageInternal
 
 class WorkerActor extends Actor {
 	val log = Logging(context.system, this)
@@ -35,7 +36,8 @@ class WorkerActor extends Actor {
 		//		case a: MsgExperimentResults => entryActorMap(a.e) ! a // TODO: cleanup references
 		//		case a: MsgExperimentResults1 => entryActorMap(a.id) ! a // TODO: remove references		
 		// From both
-		case a: MsgFilePackage => delegateTwoWayMessages(a, sender) // TODO: experiment id not existent
+		case a: MsgFilePackage => experimentActorMap(a.eID) ! a // TODO: experiment id not existent
+		case a: MsgFilePackageInternal => entryActorMap(a.eID) ! MsgFilePackage(a.content, a.filename, a.folder, a.isLastPart, a.eID, a.fID); log.info("Sending Results back")
 	}
 
 	// Starts new Exeriment
@@ -46,12 +48,6 @@ class WorkerActor extends Actor {
 
 		experimentActorMap += id -> experiment
 		entryActorMap += id -> sender
-	}
-
-	// decide, weather a MsgFilePackage has to go outside (EntryActor) or inside (WorkerExperimentActor)
-	def delegateTwoWayMessages(a: MsgFilePackage, sender: ActorRef) {
-		if (context.children.forall(c => !c.equals(sender))) experimentActorMap(a.eID) ! a // Sender is not my child, send to experimentActor
-		else entryActorMap(a.eID) ! a // sender is one of my children, send back to entry actor
 	}
 }
 

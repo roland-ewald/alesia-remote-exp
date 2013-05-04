@@ -33,6 +33,6 @@ class EntryActor extends Actor {
 			worker ! MsgFilePackage(lines, Config.experimentFileName, ".", true, thisExperimentID, new fileID) // lines = content, Filename, (sub)Folder, isLastPart, ID
 			worker ! MsgStartExperiment(Config.expMainClass, thisExperimentID) // we will use a different Message here later 
 		}
-		case a: MsgFilePackage => val fileActor = context.actorOf(FileActor(Config.contextFolder + Config.separator + "Results", new expID)); fileActor ! a
+		case a: MsgFilePackage => val fileActor = context.actorOf(FileActor(Config.contextFolder + Config.separator + "Entrypoint", new expID)); fileActor ! a
 	}
 }
