@@ -14,21 +14,21 @@ import alesia.utils.remote.MsgFinished
 import alesia.utils.remote.MsgGetExperimentResults
 import alesia.utils.remote.MsgReadingResultsFinished
 import alesia.utils.remote.MsgStartExperiment
-import alesia.utils.remote.expID
-import alesia.utils.remote.fileID
+import alesia.utils.remote.ExpID
+import alesia.utils.remote.FileID
 import alesia.utils.remote.MsgFilePackageInternal
 import alesia.utils.remote.MsgReady
 
-class FileActor(expDir: String, eID: expID) extends Actor {
+class FileActor(expDir: String, eID: ExpID) extends Actor {
 	val log = Logging(context.system, this)
 	log.info("FileActor at service.")
 	import context.dispatcher // execturion context for Futures
 
 	// State: (all mutable!)
-	val fileNamesPlus = HashMap[fileID, String]()
-	val contents = HashMap[fileID, Array[Byte]]()
+	val fileNamesPlus = HashMap[FileID, String]()
+	val contents = HashMap[FileID, Array[Byte]]()
 
-	val stillWorking = HashMap[fileID, Boolean]().withDefault(Unit => false) // means file system not finished with creating files
+	val stillWorking = HashMap[FileID, Boolean]().withDefault(Unit => false) // means file system not finished with creating files
 	var startExperiment = false // is set true, when StartExperiment command received (wait for file operations to exit)
 
 	val f = Future { val v = (new File(Config.resultsFolder(expDir))); v.mkdirs } // creating Results Folder. TODO: catch error  
@@ -37,27 +37,27 @@ class FileActor(expDir: String, eID: expID) extends Actor {
 
 	override def receive = {
 		// From Parent
-		case MsgFilePackage(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: expID, fID: fileID) =>
+		case MsgFilePackage(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: ExpID, fID: FileID) =>
 			storeMessage(content, filename, folder, fID); if (isLastPart) writeFile(fID)
 		case a: MsgGetExperimentResults => getExperimentResults
 		// From self
-		case MsgFinished(id: fileID) => { // File writing finished
+		case MsgFinished(id: FileID) => { // File writing finished
 			log.info("FileActor: File writing finished. Name: " + fileNamesPlus(id))
 			stillWorking += id -> false
-			if (startExperiment && stillWorking.values.toList.forall(b => b == false)) context.parent ! MsgReady()
+			if (startExperiment && stillWorking.values.toList.forall(b => b == false)) { context.parent ! MsgReady(); startExperiment = false }
 		}
-		case MsgReadingResultsFinished(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: expID, fID: fileID) =>
+		case MsgReadingResultsFinished(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: ExpID, fID: FileID) =>
 			log.info("FileActor: Result file reading finished"); context.parent ! MsgFilePackageInternal(content, filename, folder, isLastPart, eID, fID) //; context.stop(self) //LATER
-		case a: MsgStartExperiment => startExperiment = true; if (stillWorking.values.toList.forall(b => b == false)) context.parent ! MsgReady()
+		case a: MsgStartExperiment => if (stillWorking.values.toList.forall(b => b == false)) context.parent ! MsgReady() else startExperiment = true
 	}
 
-	def storeMessage(content: Array[Byte], filename: String, folder: String, id: fileID) {
+	def storeMessage(content: Array[Byte], filename: String, folder: String, id: FileID) {
 		stillWorking += id -> true
 		fileNamesPlus += id -> (expDir + Config.separator + folder + Config.separator + filename)
 		contents += id -> (contents.getOrElse(id, Array()) ++ content)
 	}
 
-	def writeFile(id: fileID) {
+	def writeFile(id: FileID) {
 		val s = self
 		FileWriter1.createFileAndFolders(contents(id), fileNamesPlus(id), (() => s ! MsgFinished(id))) // non Blocking
 		//		fileNamesPlus.remove(id) // debugging...
@@ -65,7 +65,7 @@ class FileActor(expDir: String, eID: expID) extends Actor {
 	}
 
 	def getExperimentResults {
-		log.info("getting Exp results")
+		log.info("FileActor: getting Exp results")
 		val s = self
 		val p = context.parent
 		FileReader.readFiles(Config.resultsFolder(expDir), Config.contextFolder, eID, (msg => s ! msg))
@@ -73,5 +73,5 @@ class FileActor(expDir: String, eID: expID) extends Actor {
 }
 
 object FileActor {
-	def apply(expDir: String, eID: expID): Props = Props(new FileActor(expDir, eID))
+	def apply(expDir: String, eID: ExpID): Props = Props(new FileActor(expDir, eID))
 }

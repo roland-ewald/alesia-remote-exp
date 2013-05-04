@@ -9,10 +9,10 @@ import akka.event.Logging
 import akka.actor.Actor
 import alesia.utils.remote.MsgGetExperimentResults
 import akka.actor.ActorRef
-import alesia.utils.remote.expID
+import alesia.utils.remote.ExpID
 import alesia.utils.remote.MsgFilePackageInternal
 
-class WorkerExperimentActor(eID: expID, expDir: String, mainClazz: String) extends Actor {
+class WorkerExperimentActor(eID: ExpID, expDir: String, mainClazz: String) extends Actor {
 	import context.dispatcher // execturion context for Futures
 	val log = Logging(context.system, this)
 	log.info("WorkerExperimentActor at service.")
@@ -44,5 +44,5 @@ class WorkerExperimentActor(eID: expID, expDir: String, mainClazz: String) exten
 }
 
 object WorkerExperimentActor {
-	def apply(id: expID, expDir: String, mainClazz: String): Props = { Props(new WorkerExperimentActor(id, expDir, mainClazz)) }
+	def apply(id: ExpID, expDir: String, mainClazz: String): Props = { Props(new WorkerExperimentActor(id, expDir, mainClazz)) }
 }

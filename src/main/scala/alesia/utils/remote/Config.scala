@@ -5,6 +5,8 @@ import java.io.File
 
 object Config {
 
+	val maxPackageSize = 900000 // in Bytes of content, currently about 900000 = 900kb
+
 	val workerIP = "127.0.0.1"
 	val workerPort = "2500"
 	val workerASName = "WorkerActorSystem"

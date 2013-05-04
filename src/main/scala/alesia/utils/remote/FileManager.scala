@@ -10,12 +10,12 @@ import akka.dispatch.OnSuccess
 import java.io.PrintWriter
 
 object FileReader {
-	def readFiles(foldername: String, workfolder: String, eID: expID, clsr: MsgReadingResultsFinished => Unit)(implicit executor: ExecutionContext) {
+	def readFiles(foldername: String, workfolder: String, eID: ExpID, clsr: MsgReadingResultsFinished => Unit)(implicit executor: ExecutionContext) {
 		val fFiles = (new File(foldername)).listFiles()
 		fFiles.foreach(f => readFile(f, workfolder, eID, clsr))
 	}
 
-	def readFile(file: File, workfolder: String, eID: expID, clsr: MsgReadingResultsFinished => Unit)(implicit executor: ExecutionContext) = {
+	def readFile(file: File, workfolder: String, eID: ExpID, clsr: MsgReadingResultsFinished => Unit)(implicit executor: ExecutionContext) = {
 		System.out.println("Reading File: " + file + ", folder: " + workfolder)
 		val fileFuture = Future {
 			val source = Source.fromFile(file)(scala.io.Codec.ISO8859)
@@ -25,11 +25,11 @@ object FileReader {
 
 			var rest = lines
 			var last = false // last sweep
-			val fID = new fileID // create ID for this file
+			val fID = new FileID // create ID for this file
 			while (!last) {
 				var content = Array[Byte]()
-				if (rest.length > 899999) {
-					val split = rest.splitAt(900000) // ~900 KB max per package
+				if (rest.length > Config.maxPackageSize + 1) {
+					val split = rest.splitAt(Config.maxPackageSize) // ~900 KB max per package
 					content = split._1
 					rest = split._2 // iterator of this loop 
 				} else {
@@ -38,6 +38,7 @@ object FileReader {
 				}
 
 				val msg = MsgReadingResultsFinished(content, filename, folder, last, eID, fID)
+				System.out.println("FileReader: sending one Message.")
 				clsr(msg)
 			} //success
 			;
