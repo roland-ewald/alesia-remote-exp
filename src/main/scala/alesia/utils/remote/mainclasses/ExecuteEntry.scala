@@ -9,9 +9,11 @@ import java.io.File
 import alesia.utils.remote.actors.EntryActor
 import alesia.utils.remote.Config
 import alesia.utils.remote.MsgCreateExperiment
+import alesia.utils.remote.MsgCreateExperiment
 
 object ExecuteEntry {
 	def main(args: Array[String]) = {
+
 		val entryAS = ActorSystem(Config.entryASName, ConfigFactory.load(ConfigFactory.parseString(Config.configString(Config.entryIP, Config.entryPort))))
 		val entry = entryAS.actorOf(Props[EntryActor], name = Config.entryActorName)
 
