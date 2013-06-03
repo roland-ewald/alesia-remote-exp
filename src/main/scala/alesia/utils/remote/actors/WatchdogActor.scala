@@ -16,28 +16,28 @@ import alesia.utils.remote.MsgExperimentConcluded
  * Handles and (later) observes experiment execution
  */
 class WatchdogActor(contextFolder: String, expDir: String, clazzName: String, execDir: String) extends AbstractActor {
-	log.info("WatchdogActor at service.")
-	log.info("WatchdogActor: starting execution.");
+  log.info("WatchdogActor at service.")
+  log.info("WatchdogActor: starting execution.");
 
-	// create the process that is the experiment:
-	val pb = Process(Config.experimentCommandSeq2(clazzName, contextFolder, expDir), new File(contextFolder + Config.separator + expDir + Config.separator + execDir))
-	val p = context.parent
-	val s = self
-	val f = Future {
-		val res = pb.!! // executes the console lines. see execution context
-		log.info("Watchdog: " + res)
-		p ! MsgExperimentConcluded()
-		context.stop(s)
-	}
-	f.onFailure {
-		case e => log.info("Error: " + e)
-	}
+  // create the process that is the experiment:
+  val pb = Process(Config.experimentCommandSeq2(clazzName, contextFolder, expDir), new File(contextFolder + Config.separator + expDir + Config.separator + execDir))
+  val p = context.parent
+  val s = self
+  val f = Future {
+    val res = pb.!! // executes the console lines. see execution context
+    log.info("Watchdog: " + res)
+    p ! MsgExperimentConcluded()
+    context.stop(s)
+  }
+  f.onFailure {
+    case e => log.info("Error: " + e)
+  }
 
-	override def receive = {
-		case _ => {}
-	}
+  override def receive = {
+    case _ => {} //TODO: add logic for failure handling
+  }
 }
 
 object WatchdogActor {
-	def apply(contextFolder: String, expDir: String, execDir: String, clazzName: String): Props = { Props(new WatchdogActor(contextFolder, expDir, clazzName, execDir)) }
+  def apply(contextFolder: String, expDir: String, execDir: String, clazzName: String): Props = { Props(new WatchdogActor(contextFolder, expDir, clazzName, execDir)) }
 }

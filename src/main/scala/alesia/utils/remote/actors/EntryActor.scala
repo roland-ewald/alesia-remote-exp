@@ -10,24 +10,25 @@ import alesia.utils.remote.MsgReadFile
 import alesia.utils.remote.MsgStartExperiment
 
 /**
- * Central Actor on the Entry ActorSystem
+ * Central entry point to the ActorSystem.
  */
 class EntryActor extends AbstractActor {
-	log.info("EntryActor at service.")
+  log.info("EntryActor at service.")
 
-	val expID = new ExpID
-	val fileActor = context.actorOf(FileActor(Config.entrypointDir, expID))
+  val experimentID = new ExpID
 
-	// remote actor:
-	val worker = context.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort))
-	worker ! MsgExperimentInit(expID, Config.expMainClass)
-	// wating for handshake...
+  val fileActor = context.actorOf(FileActor(Config.entrypointDir, experimentID))
 
-	override def receive = {
-		case MsgHandshake(aRef) => {
-			fileActor ! MsgReadFile(Config.entrypointDir + Config.separator + Config.classFileName, aRef) // send class file
-			aRef ! MsgStartExperiment( expID) // signalls, all files have been sent, start exec
-		}
-		case a: MsgFilePackage => fileActor ! a // for result file
-	}
+  val remoteWorker = context.actorFor(Config.actorAdress(Config.workerActorName, Config.workerASName, Config.workerIP, Config.workerPort))
+
+  remoteWorker ! MsgExperimentInit(experimentID, Config.expMainClass)
+
+  /** Wait for handshake. @see MsgHandshake */
+  override def receive = {
+    case MsgHandshake(aRef) => {
+      fileActor ! MsgReadFile(Config.entrypointDir + Config.separator + Config.classFileName, aRef) // send class file
+      aRef ! MsgStartExperiment(experimentID) // signals, all files have been sent, start execcution
+    }
+    case resultFile: MsgFilePackage => fileActor ! resultFile
+  }
 }

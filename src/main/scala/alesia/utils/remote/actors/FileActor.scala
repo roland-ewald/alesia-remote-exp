@@ -19,14 +19,15 @@ import alesia.utils.remote.MsgReady
 import alesia.utils.remote.MsgStartExperiment
 
 /**
- * Handles all file stuff
- * Buffers file parts untill the last part was received, then writing starts
+ * Manages file transfer.
+ * 
+ * Buffers file parts until the last part was received, then writing starts
  * Also creates needed Folders
  *
  * The meaning of children is that way: as long as this actor has child actors,
- * it assumes that file writing is still ongoing (see BufferActor).
- * When all children have terminated the experiment execution may start (if the neccessary
- * start message has been received)
+ * it assumes that file writing is still ongoing (@see RetryActor).
+ * When all children have terminated the experiment execution may start (if the necessary
+ * start message has been received).
  *
  * @param expDir full working directory (for writing files in)
  * @param eID experiment id
