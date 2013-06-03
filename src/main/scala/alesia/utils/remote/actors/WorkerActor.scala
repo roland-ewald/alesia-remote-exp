@@ -18,20 +18,18 @@ import alesia.utils.remote.MsgHandshake
  * COnnections are answered with a Handshake message, with the ActorRef of the relevant WorkerExperimentActor
  */
 class WorkerActor extends AbstractActor {
-	log.info("WorkerActor at service.")
+  log.info("WorkerActor at service.")
 
-	var experimentNumber = 1 // determines next experiment folder
+  override def receive = {
+    case MsgExperimentInit(id: ExpID, mainClazz: String) => newExperiment(sender, id, mainClazz)
+  }
 
-	override def receive = {
-		case MsgExperimentInit(id: ExpID, mainClazz: String) => newExperiment(sender, id, mainClazz)
-	}
+  def newExperiment(sender: ActorRef, id: ExpID, mainClazz: String) {
+    val expNum = System.currentTimeMillis
+    val experimentDir = Config.experimentDirectory(expNum)
+    val experiment = context.actorOf(WorkerExperimentActor(id, experimentDir, mainClazz, sender), name = Config.experimentDirectory(expNum))
 
-	def newExperiment(sender: ActorRef, id: ExpID, mainClazz: String) {
-		val experimentDir = Config.experimentDirectory(experimentNumber)
-		experimentNumber = experimentNumber + 1
-		val experiment = context.actorOf(WorkerExperimentActor(id, experimentDir, mainClazz, sender), name = Config.experimentDirectory(experimentNumber))
-
-		sender ! MsgHandshake(experiment)
-	}
+    sender ! MsgHandshake(experiment)
+  }
 }
 
