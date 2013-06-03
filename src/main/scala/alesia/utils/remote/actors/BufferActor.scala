@@ -22,7 +22,7 @@ import akka.event.Logging
  * @param fail: Semantic for failure
  * @param to: duration for timeout
  */
-class BufferActor(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemnatic, fail: FailSuccessSemantic.FailSuccessSemnatic, to: Duration) extends AbstractActor {
+class BufferActor(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemantic, fail: FailSuccessSemantic.FailSuccessSemantic, to: Duration) extends AbstractActor {
 	log.info("BUfferActor at service.")
 
 	if (success == fail) throw new IllegalArgumentException()
@@ -49,15 +49,16 @@ class BufferActor(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailS
 }
 
 object BufferActor {
-	def apply(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemnatic, fail: FailSuccessSemantic.FailSuccessSemnatic, to: Duration): Props = Props(new BufferActor(p, msg, success, fail, to))
+	def apply(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemantic, fail: FailSuccessSemantic.FailSuccessSemantic, to: Duration): Props = Props(new BufferActor(p, msg, success, fail, to))
 }
 
 /**
  * Enum determining Fail or Success Semantics
  */
 object FailSuccessSemantic extends Enumeration {
-	type FailSuccessSemnatic = Value
+	type FailSuccessSemantic = Value
 	val onTermination, onMessageSent, onTimeout = Value
 }
 
-case class MsgRetry
+//
+case class MsgRetry()
