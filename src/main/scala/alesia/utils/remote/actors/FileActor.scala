@@ -61,7 +61,7 @@ class FileActor(expDir: String, eID: ExpID) extends AbstractActor {
 	}
 
 	def writeFile(id: FileID) {
-		context.watch(context.actorOf(BufferActor(FileWritingActor(contents(id), fileNamesPlus(id)), None, FailSuccessSemantic.onTermination, FailSuccessSemantic.onTimeout, 30 seconds)))
+		context.watch(context.actorOf(RetryActor(FileWritingActor(contents(id), fileNamesPlus(id)), None, FailSuccessSemantic.onTermination, FailSuccessSemantic.onTimeout, 30 seconds)))
 	}
 
 	def readFile(filenamePlus: String, sendTo: ActorRef) {

@@ -10,11 +10,14 @@ import akka.actor.actorRef2Scala
 import akka.event.Logging
 
 /**
- * Encapsulates Actor Failure and ensures Messages processing
- * This actor is supposed to have one childactor which has to fullfill a single task
+ * Encapsulates actor failure and ensures messages processing.
+ * 
+ * This actor is supposed to have one child actor that has to fulfill a single task
  * on construction.
- * If the child Actor fails it will be reconstructed. If it succeeds, this actor will stop.
- * this can also include a message, which is to be deliverd on child Actor on construcion.
+ * 
+ * If the child actor fails, it will be reconstructed. If it succeeds, this actor will stop.
+ * 
+ * This actor can also deliver a message to the child actor on construction.
  *
  * @param p Props of child Actor
  * @param msg possible Message for child actor. delivery is ensured until actor succeeds
@@ -22,8 +25,8 @@ import akka.event.Logging
  * @param fail: Semantic for failure
  * @param to: duration for timeout
  */
-class BufferActor(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemantic, fail: FailSuccessSemantic.FailSuccessSemantic, to: Duration) extends AbstractActor {
-	log.info("BUfferActor at service.")
+class RetryActor(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemantic, fail: FailSuccessSemantic.FailSuccessSemantic, to: Duration) extends AbstractActor {
+	log.info("RetryActor at service.")
 
 	if (success == fail) throw new IllegalArgumentException()
 
@@ -48,8 +51,8 @@ class BufferActor(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailS
 
 }
 
-object BufferActor {
-	def apply(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemantic, fail: FailSuccessSemantic.FailSuccessSemantic, to: Duration): Props = Props(new BufferActor(p, msg, success, fail, to))
+object RetryActor {
+	def apply(p: Props, msg: Option[Any], success: FailSuccessSemantic.FailSuccessSemantic, fail: FailSuccessSemantic.FailSuccessSemantic, to: Duration): Props = Props(new RetryActor(p, msg, success, fail, to))
 }
 
 /**
