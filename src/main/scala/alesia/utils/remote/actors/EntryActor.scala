@@ -26,7 +26,7 @@ class EntryActor extends AbstractActor {
 	override def receive = {
 		case MsgHandshake(aRef) => {
 			fileActor ! MsgReadFile(Config.entrypointDir + Config.separator + Config.classFileName, aRef) // send class file
-			aRef ! MsgStartExperiment(Config.expMainClass, expID) // signalls, all files have been sent, start exec
+			aRef ! MsgStartExperiment( expID) // signalls, all files have been sent, start exec
 		}
 		case a: MsgFilePackage => fileActor ! a // for result file
 	}
