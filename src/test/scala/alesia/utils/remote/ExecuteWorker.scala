@@ -1,4 +1,4 @@
-package alesia.utils.remote.mainclasses
+package alesia.utils.remote
 
 import com.typesafe.config.ConfigFactory
 import akka.actor._
@@ -8,6 +8,7 @@ import alesia.utils.remote.actors.WorkerActor
 import alesia.utils.remote.Config
 
 object ExecuteWorker {
+  
 	def main(args: Array[String]) = {
 
 		//		val a:ComponentRatingSystem = TrueSkillRatingSystem.createDefaultSetup
