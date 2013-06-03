@@ -24,7 +24,7 @@ object Config {
 	// On Worker only:
 	def contextFolder = (new File(".")).getCanonicalPath() // The folder the actorSystem is executed in	
 	def experimentCommandSeq2(clazzName: String, contextFolder: String, expDir: String): Seq[String] = Seq("java", "-cp", "\"" + contextFolder + separator + expDir + "\"", clazzName)
-	def experimentDirectory = (number: Int) => "ExperimentDir" + number
+	def experimentDirectory(number: Long) = "ExperimentDir" + number
 	def libsFolder(dir: String) = dir + separator + "libs"
 	def resultsFolder(dir: String) = dir + separator + resultsFolderName
 	def resultsFolderName = "results"

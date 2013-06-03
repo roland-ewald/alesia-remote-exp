@@ -17,10 +17,13 @@ import alesia.utils.remote.MsgExperimentConcluded
  */
 class WatchdogActor(contextFolder: String, expDir: String, clazzName: String, execDir: String) extends AbstractActor {
   log.info("WatchdogActor at service.")
-  log.info("WatchdogActor: starting execution.");
 
+  val commands = Config.experimentCommandSeq2(clazzName, contextFolder, expDir)
+
+  log.info("WatchdogActor: starting execution:" + commands.mkString(" "));
+	
   // create the process that is the experiment:
-  val pb = Process(Config.experimentCommandSeq2(clazzName, contextFolder, expDir), new File(contextFolder + Config.separator + expDir + Config.separator + execDir))
+  val pb = Process(commands, new File(contextFolder + Config.separator + expDir + Config.separator + execDir))
   val p = context.parent
   val s = self
   val f = Future {

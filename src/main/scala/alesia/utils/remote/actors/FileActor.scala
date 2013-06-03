@@ -33,43 +33,41 @@ import alesia.utils.remote.MsgStartExperiment
  * @param eID experiment id
  */
 class FileActor(expDir: String, eID: ExpID) extends AbstractActor {
-	log.info("FileActor at service.")
+  log.info("FileActor at service.")
 
-	// storage of the file parts until all part have been received:
-	val fileNamesPlus = scala.collection.mutable.HashMap[FileID, String]() // (full name)
-	val contents = scala.collection.mutable.HashMap[FileID, Array[Byte]]()
+  // storage of the file parts until all part have been received:
+  val fileNamesPlus = scala.collection.mutable.HashMap[FileID, String]() // (full name)
+  val contents = scala.collection.mutable.HashMap[FileID, Array[Byte]]()
 
-	// is set true, when StartExperiment command received (is now waiting for file operations to finish)
-	var startExperiment = false
+  // is set true, when StartExperiment command received (is now waiting for file operations to finish)
+  var startExperiment = false
 
-	// creating Folders:
-	val f1 = Future { val v = (new File(expDir)); v.mkdirs } // creating exp Folder. 
-	val f = Future { val v = (new File(Config.resultsFolder(expDir))); v.mkdirs } // creating Results Folder.   
-	val f2 = Future { val v = (new File(Config.libsFolder(expDir))); v.mkdirs } // creating libsFolder. 
+  // creating experiment, results, and libs folders
+  Seq(expDir, Config.resultsFolder(expDir), Config.libsFolder(expDir)).foreach(new File(_).mkdir())
 
-	override def receive = {
-		case a: MsgFilePackage => storeMessage(a.content, a.filename, a.folder, a.fID, a.isLastPart)
-		case a: MsgReadFile => readFile(a.filenamePlus, a.sendTo)
-		case a: MsgStartExperiment => if (context.children.isEmpty) context.parent ! MsgReady() else startExperiment = true
-		case Terminated(_) => if (startExperiment && context.children.isEmpty) context.parent ! MsgReady(); startExperiment = false
-	}
+  override def receive = {
+    case a: MsgFilePackage => storeMessage(a.content, a.filename, a.folder, a.fID, a.isLastPart)
+    case a: MsgReadFile => readFile(a.filenamePlus, a.sendTo)
+    case a: MsgStartExperiment => if (context.children.isEmpty) context.parent ! MsgReady() else startExperiment = true
+    case Terminated(_) => if (startExperiment && context.children.isEmpty) context.parent ! MsgReady(); startExperiment = false
+  }
 
-	def storeMessage(content: Array[Byte], filename: String, folder: String, id: FileID, isLastPart: Boolean) {
-		fileNamesPlus += id -> (expDir + Config.separator + folder + Config.separator + filename)
-		contents += id -> (contents.getOrElse(id, Array()) ++ content)
+  def storeMessage(content: Array[Byte], filename: String, folder: String, id: FileID, isLastPart: Boolean) {
+    fileNamesPlus += id -> (expDir + Config.separator + folder + Config.separator + filename)
+    contents += id -> (contents.getOrElse(id, Array()) ++ content)
 
-		if (isLastPart) writeFile(id)
-	}
+    if (isLastPart) writeFile(id)
+  }
 
-	def writeFile(id: FileID) {
-		context.watch(context.actorOf(RetryActor(FileWritingActor(contents(id), fileNamesPlus(id)), None, FailSuccessSemantic.onTermination, FailSuccessSemantic.onTimeout, 30 seconds)))
-	}
+  def writeFile(id: FileID) {
+    context.watch(context.actorOf(RetryActor(FileWritingActor(contents(id), fileNamesPlus(id)), None, FailSuccessSemantic.onTermination, FailSuccessSemantic.onTimeout, 30 seconds)))
+  }
 
-	def readFile(filenamePlus: String, sendTo: ActorRef) {
-		context.watch(context.actorOf(FileReadingActor(new File(filenamePlus), expDir, eID, sendTo)))
-	}
+  def readFile(filenamePlus: String, sendTo: ActorRef) {
+    context.watch(context.actorOf(FileReadingActor(new File(filenamePlus), expDir, eID, sendTo)))
+  }
 }
 
 object FileActor {
-	def apply(expDir: String, eID: ExpID): Props = Props(new FileActor(expDir, eID))
+  def apply(expDir: String, eID: ExpID): Props = Props(new FileActor(expDir, eID))
 }
