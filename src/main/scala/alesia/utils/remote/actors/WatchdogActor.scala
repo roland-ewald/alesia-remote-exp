@@ -1,41 +1,43 @@
 package alesia.utils.remote.actors
 
 import java.io.File
+
 import scala.concurrent.Future
 import scala.sys.process.Process
+
 import akka.actor.Actor
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.event.Logging
 import alesia.utils.remote.Config
-import alesia.utils.remote.MsgFinished1
+import alesia.utils.remote.MsgExperimentConcluded
 
-class WatchdogActor(clazzName: String, directory: String) extends Actor {
-	import context.dispatcher // execturion context for Futures
-	val log = Logging(context.system, this)
+/**
+ * Handles and (later) observes experiment execution
+ */
+class WatchdogActor(contextFolder: String, expDir: String, clazzName: String, execDir: String) extends AbstractActor {
 	log.info("WatchdogActor at service.")
+	log.info("WatchdogActor: starting execution.");
+
+	// create the process that is the experiment:
+	val pb = Process(Config.experimentCommandSeq2(clazzName, contextFolder, expDir), new File(contextFolder + Config.separator + expDir + Config.separator + execDir))
+	val p = context.parent
+	val s = self
+	val f = Future {
+		val res = pb.!! // executes the console lines. see execution context
+		log.info("Watchdog: " + res)
+		p ! MsgExperimentConcluded()
+		context.stop(s)
+	}
+	f.onFailure {
+		case e => log.info("Error: " + e)
+	}
 
 	override def receive = {
-		case _ => {
-			log.info("WatchdogActor: starting execution.");
-
-			// create the process that is the experiment:
-			//			val pb = Process(Config.experimentCommandSeq(1), new File(Config.contextFolder + Config.separator + Config.experimentDirectory(1)))
-			val pb = Process(Config.experimentCommandSeq(1), new File(Config.resultsFolder(Config.contextFolder + Config.separator + directory)))
-			val p = context.parent
-
-			val f = Future {
-				val res = pb.!! // executes the console lines. see execution context
-				log.info("Watchdog: " + res)
-				p ! MsgFinished1()
-			}
-			f.onFailure {
-				case e => log.info("Error: " + e)
-			}
-		}
+		case _ => {}
 	}
 }
 
 object WatchdogActor {
-	def apply(clazzName: String, directory: String): Props = { Props(new WatchdogActor(clazzName, directory)) }
+	def apply(contextFolder: String, expDir: String, execDir: String, clazzName: String): Props = { Props(new WatchdogActor(contextFolder, expDir, clazzName, execDir)) }
 }

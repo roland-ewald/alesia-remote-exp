@@ -1,74 +1,71 @@
 package alesia.utils.remote.actors
 
 import java.io.File
+import scala.Array.canBuildFrom
 import scala.collection.mutable.HashMap
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import akka.actor.Actor
+import akka.actor.ActorRef
 import akka.actor.Props
-import akka.event.Logging
+import akka.actor.Terminated
+import akka.actor.actorRef2Scala
 import alesia.utils.remote.Config
-import alesia.utils.remote.FileReader
-import alesia.utils.remote.FileWriter1
-import alesia.utils.remote.MsgFilePackage
-import alesia.utils.remote.MsgFinished
-import alesia.utils.remote.MsgGetExperimentResults
-import alesia.utils.remote.MsgReadingResultsFinished
-import alesia.utils.remote.MsgStartExperiment
 import alesia.utils.remote.ExpID
 import alesia.utils.remote.FileID
-import alesia.utils.remote.MsgFilePackageInternal
+import alesia.utils.remote.MsgFilePackage
+import alesia.utils.remote.MsgReadFile
 import alesia.utils.remote.MsgReady
+import alesia.utils.remote.MsgStartExperiment
 
-class FileActor(expDir: String, eID: ExpID) extends Actor {
-	val log = Logging(context.system, this)
+/**
+ * Handles all file stuff
+ * Buffers file parts untill the last part was received, then writing starts
+ * Also creates needed Folders
+ *
+ * The meaning of children is that way: as long as this actor has child actors,
+ * it assumes that file writing is still ongoing (see BufferActor).
+ * When all children have terminated the experiment execution may start (if the neccessary
+ * start message has been received)
+ *
+ * @param expDir full working directory (for writing files in)
+ * @param eID experiment id
+ */
+class FileActor(expDir: String, eID: ExpID) extends AbstractActor {
 	log.info("FileActor at service.")
-	import context.dispatcher // execturion context for Futures
 
-	// State: (all mutable!)
-	val fileNamesPlus = HashMap[FileID, String]()
-	val contents = HashMap[FileID, Array[Byte]]()
+	// storage of the file parts until all part have been received:
+	val fileNamesPlus = scala.collection.mutable.HashMap[FileID, String]() // (full name)
+	val contents = scala.collection.mutable.HashMap[FileID, Array[Byte]]()
 
-	val stillWorking = HashMap[FileID, Boolean]().withDefault(Unit => false) // means file system not finished with creating files
-	var startExperiment = false // is set true, when StartExperiment command received (wait for file operations to exit)
+	// is set true, when StartExperiment command received (is now waiting for file operations to finish)
+	var startExperiment = false
 
-	val f = Future { val v = (new File(Config.resultsFolder(expDir))); v.mkdirs } // creating Results Folder. TODO: catch error  
-
-	override def postRestart(t: Throwable) = { context.stop(self) }
+	// creating Folders:
+	val f1 = Future { val v = (new File(expDir)); v.mkdirs } // creating exp Folder. 
+	val f = Future { val v = (new File(Config.resultsFolder(expDir))); v.mkdirs } // creating Results Folder.   
+	val f2 = Future { val v = (new File(Config.libsFolder(expDir))); v.mkdirs } // creating libsFolder. 
 
 	override def receive = {
-		// From Parent
-		case MsgFilePackage(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: ExpID, fID: FileID) =>
-			storeMessage(content, filename, folder, fID); if (isLastPart) writeFile(fID)
-		case a: MsgGetExperimentResults => getExperimentResults
-		// From self
-		case MsgFinished(id: FileID) => { // File writing finished
-			log.info("FileActor: File writing finished. Name: " + fileNamesPlus(id))
-			stillWorking += id -> false
-			if (startExperiment && stillWorking.values.toList.forall(b => b == false)) { context.parent ! MsgReady(); startExperiment = false }
-		}
-		case MsgReadingResultsFinished(content: Array[Byte], filename: String, folder: String, isLastPart: Boolean, eID: ExpID, fID: FileID) =>
-			log.info("FileActor: Result file reading finished"); context.parent ! MsgFilePackageInternal(content, filename, folder, isLastPart, eID, fID) //; context.stop(self) //LATER
-		case a: MsgStartExperiment => if (stillWorking.values.toList.forall(b => b == false)) context.parent ! MsgReady() else startExperiment = true
+		case a: MsgFilePackage => storeMessage(a.content, a.filename, a.folder, a.fID, a.isLastPart)
+		case a: MsgReadFile => readFile(a.filenamePlus, a.sendTo)
+		case a: MsgStartExperiment => if (context.children.isEmpty) context.parent ! MsgReady() else startExperiment = true
+		case Terminated(_) => if (startExperiment && context.children.isEmpty) context.parent ! MsgReady(); startExperiment = false
 	}
 
-	def storeMessage(content: Array[Byte], filename: String, folder: String, id: FileID) {
-		stillWorking += id -> true
+	def storeMessage(content: Array[Byte], filename: String, folder: String, id: FileID, isLastPart: Boolean) {
 		fileNamesPlus += id -> (expDir + Config.separator + folder + Config.separator + filename)
 		contents += id -> (contents.getOrElse(id, Array()) ++ content)
+
+		if (isLastPart) writeFile(id)
 	}
 
 	def writeFile(id: FileID) {
-		val s = self
-		FileWriter1.createFileAndFolders(contents(id), fileNamesPlus(id), (() => s ! MsgFinished(id))) // non Blocking
-		//		fileNamesPlus.remove(id) // debugging...
-		//		contents.remove(id)
+		context.watch(context.actorOf(BufferActor(FileWritingActor(contents(id), fileNamesPlus(id)), None, FailSuccessSemantic.onTermination, FailSuccessSemantic.onTimeout, 30 seconds)))
 	}
 
-	def getExperimentResults {
-		log.info("FileActor: getting Exp results")
-		val s = self
-		val p = context.parent
-		FileReader.readFiles(Config.resultsFolder(expDir), Config.contextFolder, eID, (msg => s ! msg))
+	def readFile(filenamePlus: String, sendTo: ActorRef) {
+		context.watch(context.actorOf(FileReadingActor(new File(filenamePlus), expDir, eID, sendTo)))
 	}
 }
 
