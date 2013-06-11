@@ -5,7 +5,6 @@ import akka.actor._
 import akka.actor.ActorSystem
 import akka.actor.Props
 import alesia.utils.remote.actors.WorkerActor
-import alesia.utils.remote.Config
 
 object ExecuteWorker {
   

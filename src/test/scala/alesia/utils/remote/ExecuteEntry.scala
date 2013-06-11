@@ -3,7 +3,6 @@ package alesia.utils.remote
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
-import alesia.utils.remote.Config
 import alesia.utils.remote.actors.EntryActor
 
 /**
