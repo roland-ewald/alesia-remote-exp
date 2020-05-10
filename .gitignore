@@ -1,0 +1,17 @@
+target
+*.class
+.regdata
+.settings
+.classpath
+.checkstyle
+.cache
+src/main/scala/OLDremoting/AbstractActor.scala
+src/main/scala/OLDremoting/MainActorSystem.scala
+src/main/scala/OLDremoting/ActorsTaks.scala
+src/main/scala/OLDremoting/ActorsCloud.scala
+src/main/scala/OLDremoteExperimentApproach2/NodeMain.scala
+src/main/scala/OLDremoteExperimentApproach2/Cloud.scala
+src/main/scala/OLDremoteExperimentApproach2/Assert.scala
+bin/application.conf
+Entrypoint_results.txt
+src/main/scala/OLDpingpong/Peer.scala
